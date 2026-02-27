@@ -1,0 +1,30 @@
+{
+  "final_decision": "Round 5: A=D, B=C",
+  "game_theory_models_used": [
+    "Repeated Game",
+    "Nash Bargaining",
+    "Free-Rider Problem",
+    "Deterrence Theory",
+    "Brinkmanship Theory"
+  ],
+  "negotiation_rounds": 5,
+  "trade_score_update": {
+    "A": 16.0,
+    "B": 7.0
+  },
+  "goal_achievement": {
+    "A": 0.1,
+    "B": 0.1
+  },
+  "problem_resolution": {
+    "A": 0.1,
+    "B": 0.1
+  },
+  "negotiation_history": [
+    "Round 1: A=D, B=D",
+    "Round 2: A=D, B=C",
+    "Round 3: A=D, B=C",
+    "Round 4: A=D, B=D",
+    "Round 5: A=D, B=C"
+  ]
+}
