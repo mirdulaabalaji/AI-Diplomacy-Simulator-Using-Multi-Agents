@@ -14,3 +14,18 @@ Thumbs.db
 
 # IDE
 .idea/
+
+# extra
+negotiation_memory.db 
+final_output.json 
+check_db.py
+__init__.py
+**/__init__.py 
+final_output.json 
+__pycache__/ 
+**/__pycache__/ 
+*.pyc 
+*/__init__.py 
+final_output.json 
+negotiation_memory.db 
+main.py 

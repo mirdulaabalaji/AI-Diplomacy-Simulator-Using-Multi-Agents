@@ -6,12 +6,15 @@ import json
 INPUT_PARSER_PROMPT = """
 You are an expert international policy analyst.
 
-The user may describe countries, goals, problems, and resources
-in natural language. The scenario may be implicit.
+The user describes a geopolitical negotiation scenario.
+Your job is to extract or infer FOUR negotiating parties from the description.
 
-If no explicit scenario is stated, infer a reasonable one.
+IMPORTANT NAMING RULES:
+- If the user gives explicit names (e.g. "USA", "China"), use those exact names.
+- If the user refers to parties as "Country A", "Country B" etc., keep those generic names exactly — do NOT replace them with real country names.
+- If fewer than four parties are described, invent plausible FICTIONAL additional parties using generic names like "Country E" or "Regional Bloc D" — never substitute real nation names unless the user provided them.
 
-Return STRICT JSON ONLY in this EXACT format:
+Return STRICT JSON ONLY — no markdown, no explanation:
 
 {{
   "scenario": "...",
@@ -23,6 +26,18 @@ Return STRICT JSON ONLY in this EXACT format:
       "goals": []
     }},
     "B": {{
+      "name": "...",
+      "resources": [],
+      "problems": [],
+      "goals": []
+    }},
+    "C": {{
+      "name": "...",
+      "resources": [],
+      "problems": [],
+      "goals": []
+    }},
+    "D": {{
       "name": "...",
       "resources": [],
       "problems": [],
@@ -39,29 +54,34 @@ User description:
 def parse_natural_language_input(text: str) -> NegotiationState:
     print("DEBUG: Calling Groq to parse natural language input...")
 
-    response = invoke_llm(
-        INPUT_PARSER_PROMPT.format(text=text)
-    )
+    response = invoke_llm(INPUT_PARSER_PROMPT.format(text=text), agent_id="A")
     print("DEBUG: Groq returned response")
 
+    clean = response.strip()
+    if clean.startswith("```"):
+        clean = clean.split("```")[1]
+        if clean.startswith("json"):
+            clean = clean[4:]
+    clean = clean.strip()
+
     try:
-        data = json.loads(response)
+        data = json.loads(clean)
     except json.JSONDecodeError:
         raise ValueError(
             f"LLM failed to return valid JSON.\n\nResponse:\n{response}"
         )
 
     countries = {}
-
-    for key, c in data["countries"].items():
+    for key in ("A", "B", "C", "D"):
+        c = data["countries"][key]
         countries[key] = CountryState(
             name=c["name"],
-            resources=c["resources"],
-            problems=c["problems"],
-            goals=c["goals"],
+            resources=c.get("resources", []),
+            problems=c.get("problems", []),
+            goals=c.get("goals", []),
         )
 
     return NegotiationState(
         scenario=data["scenario"],
-        countries=countries
+        countries=countries,
     )
