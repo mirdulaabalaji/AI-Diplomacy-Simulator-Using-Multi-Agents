@@ -11,3 +11,6 @@ __pycache__/
 # IDE
 .idea/
 *.db
+final_output.json
+check_db.py
+main.py
