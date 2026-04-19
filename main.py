@@ -1,96 +1,184 @@
 from graph.negotiation_graph import build_negotiation_graph
-from schemas.state import NegotiationState, CountryState
+from schemas.state import NegotiationState
+from agents.llm import AGENT_MODELS
 import json
 
 
 def get_user_input():
-    print("Enter negotiation description (natural language):")
-    text = input().strip()
-
-    # Minimal fallback parser (your LLM parser already exists)
+    print("\n" + "="*60)
+    print("  🌐 INTERNATIONAL NEGOTIATION SIMULATOR")
+    print("     4 LLM agents | Game theory | Groq-powered")
+    print("="*60)
+    print("\nDescribe the negotiation scenario (natural language):")
+    text = input("  > ").strip()
     from agents.input_parser import parse_natural_language_input
     return parse_natural_language_input(text)
 
 
-def extract_actions(round_str):
-    try:
-        parts = round_str.split(":")[1].split(",")
-        a = parts[0].split("=")[1].strip()
-        b = parts[1].split("=")[1].strip()
-        return a, b
-    except Exception:
-        return None, None
-
-
-def is_successful_negotiation(state: NegotiationState):
+def get_outcome(state: NegotiationState) -> dict:
+    """
+    Returns a structured outcome reflecting whether the negotiation
+    succeeded, partially succeeded, or collapsed into defection.
+    """
     history = state.history
-
     if not history:
-        return False, "No negotiation rounds occurred."
+        return {
+            "result": "NO_ROUNDS",
+            "label": "❌ No negotiation rounds occurred.",
+            "detail": "The simulation did not run."
+        }
 
-    # Rule 1: Final round mutual cooperation
-    last_a, last_b = extract_actions(history[-1])
-    if last_a == "C" and last_b == "C":
-        return True, "Negotiation converged to mutual cooperation in the final round."
+    # Full agreement
+    if state.agreement_reached:
+        return {
+            "result": "FULL_AGREEMENT",
+            "label": "✅ Full agreement reached",
+            "detail": "All four parties cooperated simultaneously — Nash equilibrium achieved."
+        }
 
-    # Rule 2: Late-stage convergence (2 of last 3 rounds)
+    # Explicit defection ending (hit max rounds without agreement)
+    if state.agreement_failed:
+        # Work out who the persistent defectors were
+        defector_rounds = {}
+        for entry in history:
+            try:
+                actions_part = entry.split(":")[1].split("|")[0]
+                for pair in actions_part.split(","):
+                    k, v = pair.strip().split("=")
+                    if v.strip() == "D":
+                        defector_rounds[k.strip()] = defector_rounds.get(k.strip(), 0) + 1
+            except Exception:
+                pass
+
+        defector_names = [
+            f"{state.countries[k].name} ({k}) — defected {n}x"
+            for k, n in sorted(defector_rounds.items(), key=lambda x: -x[1])
+        ]
+
+        return {
+            "result": "COLLAPSED",
+            "label": "❌ Negotiation collapsed — no agreement reached",
+            "detail": f"The simulation ran all {state.round} rounds without full cooperation.",
+            "persistent_defectors": defector_names,
+            "game_theory_note": (
+                "This reflects a Prisoner's Dilemma trap: individually rational defection "
+                "produced a collectively suboptimal outcome. "
+                "Brinkmanship escalation or free-riding prevented stable cooperation."
+            )
+        }
+
+    # Partial / majority convergence
+    def majority_coop(round_str: str) -> bool:
+        try:
+            actions_part = round_str.split(":")[1].split("|")[0]
+            pairs = [p.strip() for p in actions_part.split(",")]
+            coop_count = sum(1 for p in pairs if p.split("=")[1].strip() == "C")
+            return coop_count >= 3
+        except Exception:
+            return False
+
     recent = history[-3:]
-    coop = sum(
-        1 for r in recent
-        if extract_actions(r) == ("C", "C")
-    )
+    convergence = sum(1 for r in recent if majority_coop(r))
+    if convergence >= 2:
+        return {
+            "result": "PARTIAL_AGREEMENT",
+            "label": "⚠️ Partial agreement — majority cooperation sustained",
+            "detail": "3 or more parties cooperated consistently but full consensus was not reached."
+        }
 
-    if coop >= 2:
-        return True, "Negotiation showed late-stage cooperative convergence."
+    if state.active_coalitions:
+        partners = " & ".join(
+            f"{state.countries[a].name}+{state.countries[b].name}"
+            for a, b in state.active_coalitions
+        )
+        return {
+            "result": "COALITION_ONLY",
+            "label": f"⚠️ Coalition formed but no full agreement: {partners}",
+            "detail": "A bilateral alliance formed but other parties did not join."
+        }
 
-    return False, "Negotiation failed to reach a stable cooperative equilibrium."
+    return {
+        "result": "COLLAPSED",
+        "label": "❌ Negotiation collapsed — no agreement reached",
+        "detail": "No stable cooperative equilibrium was reached within the round limit.",
+        "game_theory_note": (
+            "Defection dominated. This is consistent with a one-shot Prisoner's Dilemma "
+            "outcome where trust never accumulated sufficiently for cooperation to take hold."
+        )
+    }
 
 
 def main():
-    print("PYTHON IS RUNNING")
     print("DEBUG: main() started")
 
-    # -------- INPUT --------
     state = get_user_input()
 
-    # -------- RUN GRAPH --------
+    print(f"\n📋 Scenario: {state.scenario}")
+    print(f"🤖 Agents & Models:")
+    for agent_id, country in state.countries.items():
+        model = AGENT_MODELS.get(agent_id, "unknown")
+        print(f"   {agent_id}: {country.name} — [{model}]")
+
     graph = build_negotiation_graph()
     result = graph.invoke(state)
 
-    # 🔥 CRITICAL FIX: normalize output
     if isinstance(result, dict):
         final_state = NegotiationState(**result)
     else:
         final_state = result
 
-    # -------- JSON OUTPUT --------
+    outcome = get_outcome(final_state)
+
     output = {
-        "final_decision": final_state.history[-1] if final_state.history else None,
+        "scenario": final_state.scenario,
+        "outcome": outcome,                   # NEW: top-level outcome block
+        "agents": {
+            k: {
+                "name": v.name,
+                "model": AGENT_MODELS.get(k, "unknown"),
+                "final_payoff": round(v.payoff, 2),
+                "final_trust": round(v.trust, 2),
+                "proposed_ally": v.proposed_ally,
+            }
+            for k, v in final_state.countries.items()
+        },
         "game_theory_models_used": final_state.game_models,
         "negotiation_rounds": final_state.round,
-        "payoffs": {
-            k: v.payoff for k, v in final_state.countries.items()
-        },
-        "goal_achievement": {
-            k: round(v.trust, 2) for k, v in final_state.countries.items()
-        },
-        "problem_resolution": {
-            k: round(v.trust, 2) for k, v in final_state.countries.items()
-        },
+        "active_coalitions": final_state.active_coalitions,
         "negotiation_history": final_state.history,
+        "message_log": [
+            {
+                "round": m.round,
+                "from": final_state.countries[m.sender].name,
+                "to": final_state.countries[m.recipient].name,
+                "message": m.content,
+            }
+            for m in final_state.message_log
+        ],
+        "agreement_reached": final_state.agreement_reached,
+        "agreement_failed": final_state.agreement_failed,   # NEW
     }
 
+    print("\n" + "="*60)
+    print("  📜 FINAL REPORT")
+    print("="*60)
     print(json.dumps(output, indent=2))
 
-    # -------- VERDICT --------
-    success, explanation = is_successful_negotiation(final_state)
+    print("\n" + "="*60)
+    print(outcome["label"])
+    if "detail" in outcome:
+        print(outcome["detail"])
+    if "persistent_defectors" in outcome:
+        print("Persistent defectors:")
+        for d in outcome["persistent_defectors"]:
+            print(f"  • {d}")
+    if "game_theory_note" in outcome:
+        print(f"\n📖 {outcome['game_theory_note']}")
+    print("="*60)
 
-    if success:
-        print(f"\n✅ Negotiation SUCCESSFUL: {explanation}")
-    else:
-        print(f"\n❌ Negotiation FAILED: {explanation}")
-
-    print("\n✅ Negotiation complete")
+    with open("final_output.json", "w") as f:
+        json.dump(output, f, indent=2)
+    print("\n💾 Output saved to final_output.json")
 
 
 if __name__ == "__main__":
