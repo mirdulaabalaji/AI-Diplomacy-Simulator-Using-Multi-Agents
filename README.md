@@ -1,10 +1,10 @@
-# 🌐 AI Diplomacy Simulator Using Multi-Agents
+#  AI Diplomacy Simulator Using Multi-Agents
 
 > *A four-agent, LLM-powered international negotiation simulator that combines natural language diplomacy, game-theoretic decision-making, exclusive coalition management, and cross-simulation persistent memory, built as a unified framework.*
 
 ---
 
-## 📌 Table of Contents
+##  Table of Contents
 
 - [Motivation](#-motivation)
 - [System Overview](#-system-overview)
@@ -15,7 +15,7 @@
 - [License](#-license)
 ---
 
-## 💡 Motivation
+##  Motivation
 
 Real-world diplomacy is not a mathematical puzzle: it involves **memory, trust, deception, and shifting alliances**. Yet no existing computational system adequately models all of these at once. 
 
@@ -29,7 +29,7 @@ The cost of failed negotiations in the real world involves broken treaties, econ
 
 ---
 
-## 🗺️ System Overview
+##  System Overview
 
 The simulator models a **four-country international negotiation** as a repeated strategic game.  Each country is an **autonomous LLM-powered agent** that:
 
@@ -42,7 +42,7 @@ The simulation ends when **all four agents cooperate simultaneously** (agreement
 
 ---
 
-## ✨ Features
+##  Features
 
 - **4-Agent LLM Simulation**: each country is a fully autonomous strategic agent powered by Groq LLMs
 -  **Two Distinct LLM Models**: behavioural diversity achieved by assigning different Groq models across agents
@@ -58,7 +58,7 @@ The simulation ends when **all four agents cooperate simultaneously** (agreement
 
 ---
 
-## 🛠️ Technologies Used
+##  Technologies Used
 
 ### Core Language & Framework
 | Technology | Purpose |
@@ -98,7 +98,7 @@ The simulation ends when **all four agents cooperate simultaneously** (agreement
 
 ---
 
-## 📊 Results
+##  Results
 
 ### Cooperation Scenario (Vaccine Distribution)
 - Messaging phase built trust across 5 rounds
@@ -130,7 +130,7 @@ The simulation ends when **all four agents cooperate simultaneously** (agreement
 
 ---
 
-## 🚀 Getting Started
+##  Getting Started
 
 ### Prerequisites
 ```bash
@@ -170,7 +170,7 @@ Country D is a regulatory body with limited enforcement power.
 ```
 ---
 
-## 📄 License
+##  License
 
 This project was developed as academic coursework at Vellore Institute of Technology. Please contact the author before reuse or redistribution.
 
